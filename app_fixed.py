@@ -327,14 +327,57 @@ def main():
                     # Export
                     col1, col2 = st.columns(2)
                     with col1:
-                        if st.button("📥 Exporter en PNG", use_container_width=True):
-                            img_bytes = gantt_visualizer.export_gantt_as_image(fig)
-                            st.download_button(
-                                label="📥 Télécharger PNG",
-                                data=img_bytes,
-                                file_name=f"{project['name']}_gantt.png",
-                                mime="image/png"
-                            )
+                        if st.button("📥 Exporter le diagramme", use_container_width=True):
+                            try:
+                                # Essayer d'exporter en SVG (plus fiable)
+                                img_bytes = fig.to_image(format="svg", width=1200, height=800)
+                                st.download_button(
+                                    label="📥 Télécharger SVG",
+                                    data=img_bytes,
+                                    file_name=f"{project['name']}_gantt.svg",
+                                    mime="image/svg+xml"
+                                )
+                            except Exception as e:
+                                # Fallback: essayer PNG
+                                try:
+                                    img_bytes = fig.to_image(format="png", width=1200, height=800, scale=2)
+                                    st.download_button(
+                                        label="📥 Télécharger PNG",
+                                        data=img_bytes,
+                                        file_name=f"{project['name']}_gantt.png",
+                                        mime="image/png"
+                                    )
+                                except Exception as png_error:
+                                    # Fallback au HTML interactif
+                                    config = {
+                                        'displayModeBar': True,
+                                        'displaylogo': False,
+                                        'toImageButtonOptions': {
+                                            'format': 'svg',
+                                            'filename': f"{project['name']}_gantt",
+                                            'height': 800,
+                                            'width': 1200,
+                                            'scale': 2
+                                        },
+                                        'modeBarButtonsToAdd': ['downloadsvg', 'downloadpng', 'downloadjpeg']
+                                    }
+                                    
+                                    # Générer HTML interactif
+                                    html_content = fig.to_html(
+                                        include_plotlyjs='cdn',
+                                        config=config,
+                                        full_html=True
+                                    )
+                                    
+                                    st.download_button(
+                                        label="📥 Télécharger HTML",
+                                        data=html_content,
+                                        file_name=f"{project['name']}_gantt.html",
+                                        mime="text/html"
+                                    )
+                                    
+                                    st.info("L'export direct en image n'est pas disponible. Un document HTML interactif a été généré à la place. Vous pourrez utiliser les boutons d'export intégrés pour sauvegarder en SVG, PNG ou JPEG.")
+                                    
                     with col2:
                         if st.button("📥 Exporter en CSV", use_container_width=True):
                             csv = filtered_df.to_csv(index=False).encode('utf-8')
