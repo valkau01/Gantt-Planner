@@ -161,15 +161,96 @@ class GanttVisualizer:
         
         return fig
     
-    def export_gantt_as_image(self, fig):
-        """
-        Exporte le diagramme de Gantt en image PNG
+def export_gantt_as_image(self, fig):
+    """
+    Exporte le diagramme de Gantt en différents formats avec solutions de secours
+    
+    Args:
+        fig (plotly.graph_objects.Figure): Diagramme de Gantt à exporter
         
-        Args:
-            fig (plotly.graph_objects.Figure): Diagramme de Gantt à exporter
+    Returns:
+        tuple: (bytes/str, str) - Contenu et type MIME
+    """
+    # Solution 1: Essayer d'abord l'export SVG (plus fiable que PNG)
+    try:
+        fig.update_layout(
+            # Configuration pour optimiser le rendu SVG
+            margin=dict(l=60, r=40, t=60, b=60),
+            paper_bgcolor='white',
+            plot_bgcolor='white'
+        )
+        img_bytes = fig.to_image(format="svg", width=1200, height=800)
+        return img_bytes, "image/svg+xml"
+    except Exception as e:
+        print(f"SVG export failed: {str(e)}")
+        
+        # Solution 2: Essayer l'export PNG
+        try:
+            img_bytes = fig.to_image(format="png", width=1200, height=800, scale=2)
+            return img_bytes, "image/png"
+        except Exception as e:
+            print(f"PNG export failed: {str(e)}")
             
-        Returns:
-            bytes: Image au format PNG
-        """
-        img_bytes = fig.to_image(format="png", width=1200, height=800, scale=2)
-        return img_bytes
+            # Solution 3: Essayer une approche sans kaleido - HTML interactif
+            try:
+                # Configuration pour ajouter des boutons d'export dans le HTML
+                config = {
+                    'displayModeBar': True,
+                    'displaylogo': False,
+                    'toImageButtonOptions': {
+                        'format': 'svg',  # Format par défaut pour le bouton d'export
+                        'filename': 'gantt_chart',
+                        'height': 800,
+                        'width': 1200,
+                        'scale': 2
+                    },
+                    'modeBarButtonsToAdd': ['downloadsvg', 'downloadpng', 'downloadjpeg']
+                }
+                
+                # Générer HTML interactif avec les options de configuration
+                html_content = fig.to_html(
+                    include_plotlyjs='cdn',
+                    config=config,
+                    full_html=True
+                )
+                
+                return html_content.encode('utf-8'), "text/html"
+            except Exception as e:
+                print(f"HTML export failed: {str(e)}")
+                
+                # Solution 4: Dernier recours - JSON
+                try:
+                    # Convertir en JSON avec un message explicatif
+                    import json
+                    chart_data = fig.to_dict()
+                    html_message = f"""
+                    <html>
+                    <head><title>Diagramme Gantt (JSON)</title></head>
+                    <body>
+                        <h1>Diagramme Gantt - Format JSON</h1>
+                        <p>L'exportation en image a échoué. Voici les données brutes du diagramme au format JSON.</p>
+                        <p>Vous pouvez les copier et les importer dans un outil compatible Plotly.</p>
+                        <textarea style="width:90%; height:70vh; margin:20px;">{json.dumps(chart_data)}</textarea>
+                    </body>
+                    </html>
+                    """
+                    return html_message.encode('utf-8'), "text/html"
+                except:
+                    # Vraiment dernier recours - message d'erreur formaté
+                    error_html = f"""
+                    <html>
+                    <head><title>Erreur d'exportation</title></head>
+                    <body>
+                        <h1>Erreur d'exportation</h1>
+                        <p>Impossible d'exporter le diagramme. Veuillez essayer:</p>
+                        <ol>
+                            <li>Faire une capture d'écran manuelle</li>
+                            <li>Utiliser le bouton d'export intégré au diagramme</li>
+                            <li>Exporter les données en CSV et les importer dans un autre outil</li>
+                        </ol>
+                    </body>
+                    </html>
+                    """
+                    return error_html.encode('utf-8'), "text/html"
+
+   
